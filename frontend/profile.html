@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeepFake Tracker — Profile</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep:#08090d; --bg:#0c0f15;
+      --surface:rgba(17,21,32,.85); --surface-solid:#111520;
+      --border:rgba(56,68,100,.35); --border-strong:rgba(80,96,140,.5);
+      --text:#e4e8f1; --text-secondary:#8b95b0; --text-muted:#5a6480;
+      --accent:#818cf8; --accent-dim:#5b65c4; --accent-glow:rgba(129,140,248,.18);
+      --cyan:#06b6d4; --real:#34d399; --fake:#f87171; --warning:#fbbf24;
+      --radius:16px; --radius-sm:10px;
+      --shadow:0 8px 32px rgba(0,0,0,.4); --shadow-lg:0 20px 60px rgba(0,0,0,.5);
+    }
+    *, *::before, *::after { box-sizing:border-box; margin:0; padding:0; }
+    body {
+      min-height:100vh; background:var(--bg-deep); color:var(--text);
+      font-family:'Inter',system-ui,sans-serif;
+      overflow-x:hidden; -webkit-font-smoothing:antialiased;
+    }
+    .bg-gradient {
+      position:fixed; inset:0; z-index:0; pointer-events:none;
+      background:
+        radial-gradient(ellipse 800px 600px at 15% -5%,rgba(99,102,241,.12) 0%,transparent 60%),
+        radial-gradient(ellipse 600px 500px at 85% 10%,rgba(6,182,212,.08) 0%,transparent 50%),
+        radial-gradient(ellipse 500px 400px at 50% 85%,rgba(248,113,113,.05) 0%,transparent 50%);
+      animation:bgShift 20s ease-in-out infinite alternate;
+    }
+    @keyframes bgShift { 0%{opacity:1;transform:scale(1)} 50%{opacity:.8;transform:scale(1.04)} 100%{opacity:1;transform:scale(1)} }
+    .bg-grid {
+      position:fixed; inset:0; z-index:0; pointer-events:none;
+      background-image:linear-gradient(rgba(129,140,248,.03) 1px,transparent 1px),linear-gradient(90deg,rgba(129,140,248,.03) 1px,transparent 1px);
+      background-size:60px 60px;
+    }
+
+    /* ── NAV ── */
+    nav {
+      position:sticky; top:0; z-index:100;
+      background:rgba(8,9,13,.8); backdrop-filter:blur(16px);
+      border-bottom:1px solid var(--border);
+      display:flex; align-items:center; justify-content:space-between;
+      padding:.85rem 2rem; gap:1rem;
+    }
+    .nav-logo { display:flex; align-items:center; gap:.65rem; text-decoration:none; color:var(--text); }
+    .nav-logo svg { width:30px; height:30px; }
+    .nav-logo-text { font-size:1rem; font-weight:800; letter-spacing:-.02em; }
+    .nav-logo-text span { color:var(--accent); }
+    .nav-actions { display:flex; gap:.75rem; align-items:center; }
+    .nav-link {
+      color:var(--text-secondary); text-decoration:none; font-size:.85rem; font-weight:500;
+      padding:.4rem .8rem; border-radius:8px; transition:all .2s;
+    }
+    .nav-link:hover { color:var(--text); background:rgba(129,140,248,.08); }
+    .btn-nav-out {
+      background:none; border:1px solid var(--border-strong); color:var(--text-secondary);
+      border-radius:8px; padding:.4rem .9rem; font-size:.83rem; font-weight:600;
+      cursor:pointer; font-family:inherit; transition:all .2s;
+    }
+    .btn-nav-out:hover { border-color:var(--fake); color:var(--fake); }
+
+    /* ── LAYOUT ── */
+    .page { position:relative; z-index:1; max-width:860px; margin:0 auto; padding:2.5rem 1.25rem 4rem; }
+    .page-header { margin-bottom:2rem; }
+    .page-header h1 { font-size:1.6rem; font-weight:800; letter-spacing:-.03em; }
+    .page-header p { color:var(--text-muted); font-size:.875rem; margin-top:.3rem; }
+
+    /* ── CARD ── */
+    .card {
+      background:var(--surface); border:1px solid var(--border-strong);
+      border-radius:var(--radius); backdrop-filter:blur(20px);
+      box-shadow:var(--shadow); margin-bottom:1.5rem;
+      animation:cardIn .4s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes cardIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+    .card:nth-child(2) { animation-delay:.06s; }
+    .card:nth-child(3) { animation-delay:.12s; }
+    .card-header {
+      display:flex; align-items:center; justify-content:space-between;
+      padding:1.35rem 1.75rem 0;
+    }
+    .card-header h2 { font-size:1rem; font-weight:700; }
+    .card-body { padding:1.25rem 1.75rem 1.75rem; }
+
+    /* ── AVATAR ── */
+    .profile-top { display:flex; align-items:center; gap:1.5rem; padding:1.5rem 1.75rem; }
+    .avatar-wrap { position:relative; flex-shrink:0; }
+    .avatar {
+      width:80px; height:80px; border-radius:50%;
+      background:linear-gradient(135deg,var(--accent),var(--cyan));
+      display:flex; align-items:center; justify-content:center;
+      font-size:2rem; font-weight:800; color:#fff; letter-spacing:-.05em;
+      border:3px solid var(--border-strong); position:relative; overflow:hidden;
+      cursor:pointer;
+    }
+    .avatar-overlay {
+      position:absolute; inset:0; background:rgba(0,0,0,.55);
+      display:flex; align-items:center; justify-content:center;
+      opacity:0; transition:opacity .2s; border-radius:50%;
+    }
+    .avatar:hover .avatar-overlay { opacity:1; }
+    .avatar img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; border-radius:50%; }
+    .avatar-upload { display:none; }
+    .profile-info { flex:1; min-width:0; }
+    .profile-name { font-size:1.25rem; font-weight:800; letter-spacing:-.02em; }
+    .profile-email { font-size:.83rem; color:var(--text-muted); margin-top:.2rem; }
+    .profile-joined { font-size:.77rem; color:var(--text-muted); margin-top:.4rem; }
+    .badge { display:inline-block; background:var(--accent-glow); border:1px solid rgba(129,140,248,.3); color:var(--accent); font-size:.7rem; font-weight:700; border-radius:100px; padding:.2rem .6rem; letter-spacing:.04em; }
+
+    /* ── FORM FIELDS ── */
+    .field { margin-bottom:1.1rem; }
+    .field:last-child { margin-bottom:0; }
+    label.field-label { display:block; font-size:.76rem; font-weight:600; color:var(--text-secondary); margin-bottom:.4rem; letter-spacing:.04em; text-transform:uppercase; }
+    .field-static { font-size:.92rem; color:var(--text); padding:.5rem 0; border-bottom:1px solid transparent; }
+    input[type=text], input[type=email], input[type=password], textarea {
+      width:100%; padding:.7rem 1rem; background:rgba(0,0,0,.3);
+      border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+      color:var(--text); font-size:.92rem; font-family:inherit; outline:none;
+      transition:border-color .2s,box-shadow .2s; resize:vertical;
+    }
+    input:focus, textarea:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+    input:read-only, textarea:read-only { opacity:.55; cursor:default; }
+    input:read-only:focus, textarea:read-only:focus { border-color:var(--border-strong); box-shadow:none; }
+    .input-wrap { position:relative; }
+    input.has-eye { padding-right:2.8rem; }
+    .eye-btn {
+      position:absolute; right:.75rem; top:50%; transform:translateY(-50%);
+      background:none; border:none; cursor:pointer; color:var(--text-muted);
+      padding:.2rem; display:flex; align-items:center; transition:color .2s;
+    }
+    .eye-btn:hover { color:var(--accent); }
+    .two-col { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+    @media(max-width:540px) { .two-col { grid-template-columns:1fr; } }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      padding:.72rem 1.5rem; background:linear-gradient(135deg,var(--accent),var(--accent-dim));
+      border:none; border-radius:var(--radius-sm); color:#fff; font-size:.88rem;
+      font-weight:700; font-family:inherit; cursor:pointer;
+      transition:opacity .2s,transform .15s,box-shadow .2s;
+      box-shadow:0 4px 20px rgba(129,140,248,.3);
+    }
+    .btn-primary:hover { opacity:.9; transform:translateY(-1px); box-shadow:0 6px 28px rgba(129,140,248,.4); }
+    .btn-primary:active { transform:translateY(0); }
+    .btn-secondary {
+      padding:.72rem 1.2rem; background:transparent;
+      border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+      color:var(--text-secondary); font-size:.88rem; font-weight:600;
+      font-family:inherit; cursor:pointer; transition:all .2s;
+    }
+    .btn-secondary:hover { border-color:var(--accent); color:var(--accent); }
+    .btn-danger {
+      padding:.72rem 1.2rem; background:transparent;
+      border:1px solid rgba(248,113,113,.3); border-radius:var(--radius-sm);
+      color:var(--fake); font-size:.88rem; font-weight:600;
+      font-family:inherit; cursor:pointer; transition:all .2s;
+    }
+    .btn-danger:hover { background:rgba(248,113,113,.1); border-color:var(--fake); }
+    .actions-row { display:flex; gap:.75rem; align-items:center; flex-wrap:wrap; margin-top:1.25rem; }
+
+    /* ── MESSAGES ── */
+    .msg {
+      border-radius:var(--radius-sm); padding:.65rem 1rem;
+      font-size:.82rem; font-weight:500; margin-bottom:1rem;
+      display:none; animation:fadeSlide .25s ease;
+    }
+    @keyframes fadeSlide { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+    .msg.error { background:rgba(248,113,113,.1); border:1px solid rgba(248,113,113,.3); color:#fca5a5; display:block; }
+    .msg.success { background:rgba(52,211,153,.1); border:1px solid rgba(52,211,153,.25); color:#6ee7b7; display:block; }
+
+    /* ── STRENGTH ── */
+    .strength-bar { display:flex; gap:.35rem; margin-top:.5rem; }
+    .strength-seg { height:3px; flex:1; border-radius:2px; background:rgba(255,255,255,.08); transition:background .3s; }
+    .strength-label { font-size:.72rem; color:var(--text-muted); margin-top:.3rem; }
+
+    /* ── STATS ── */
+    .stats-row { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; }
+    @media(max-width:480px) { .stats-row { grid-template-columns:1fr 1fr; } }
+    .stat-card {
+      background:rgba(0,0,0,.25); border:1px solid var(--border); border-radius:var(--radius-sm);
+      padding:1rem 1.25rem; text-align:center;
+    }
+    .stat-val { font-size:1.6rem; font-weight:800; letter-spacing:-.04em; font-family:'Space Mono',monospace; }
+    .stat-val.accent { color:var(--accent); }
+    .stat-val.cyan { color:var(--cyan); }
+    .stat-val.real { color:var(--real); }
+    .stat-lbl { font-size:.72rem; color:var(--text-muted); font-weight:500; margin-top:.2rem; letter-spacing:.04em; text-transform:uppercase; }
+
+    /* ── DIVIDER ── */
+    .section-divider { height:1px; background:var(--border); margin:1.25rem 0; }
+
+    /* ── EDIT TOGGLE ── */
+    .edit-chip {
+      display:inline-flex; align-items:center; gap:.4rem;
+      font-size:.77rem; font-weight:700; color:var(--accent); background:var(--accent-glow);
+      border:1px solid rgba(129,140,248,.25); border-radius:100px; padding:.25rem .75rem;
+      cursor:pointer; transition:all .2s; user-select:none;
+    }
+    .edit-chip:hover { background:rgba(129,140,248,.25); }
+  </style>
+</head>
+<body>
+<div class="bg-gradient"></div>
+<div class="bg-grid"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo">
+    <svg viewBox="0 0 40 40" fill="none">
+      <circle cx="20" cy="20" r="18" stroke="url(#gn)" stroke-width="2.5" opacity=".7"/>
+      <path d="M14 20 L18 26 L28 14" stroke="url(#gn)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <defs><linearGradient id="gn" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+    </svg>
+    <span class="nav-logo-text">DeepFake <span>Tracker</span></span>
+  </a>
+  <div class="nav-actions">
+    <a href="/" class="nav-link">Analyzer</a>
+    <button class="btn-nav-out" onclick="doLogout()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <h1>My Profile</h1>
+    <p>Manage your account details and security settings.</p>
+  </div>
+
+  <!-- Profile card -->
+  <div class="card" id="profile-card">
+    <div class="profile-top">
+      <div class="avatar-wrap">
+        <div class="avatar" onclick="document.getElementById('avatar-upload').click()">
+          <span id="avatar-initials">?</span>
+          <img id="avatar-img" alt="" style="display:none" />
+          <div class="avatar-overlay">
+            <svg width="22" height="22" fill="none" stroke="#fff" stroke-width="2" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </div>
+        </div>
+        <input type="file" id="avatar-upload" class="avatar-upload" accept="image/*" onchange="handleAvatar(this)" />
+      </div>
+      <div class="profile-info">
+        <div class="profile-name" id="display-name">Loading…</div>
+        <div class="profile-email" id="display-email"></div>
+        <div class="profile-joined" id="display-joined"></div>
+        <div style="margin-top:.5rem"><span class="badge">Verified User</span></div>
+      </div>
+      <div>
+        <div class="edit-chip" id="edit-chip" onclick="toggleEdit()">
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Edit
+        </div>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <div class="msg" id="profile-msg"></div>
+      <div class="two-col">
+        <div class="field">
+          <label class="field-label">User ID</label>
+          <input type="text" id="field-userid" readonly />
+        </div>
+        <div class="field">
+          <label class="field-label">Email Address</label>
+          <input type="email" id="field-email" readonly />
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Display Name</label>
+        <input type="text" id="field-name" placeholder="Your full name" readonly />
+      </div>
+      <div class="field">
+        <label class="field-label">Bio</label>
+        <textarea id="field-bio" rows="3" placeholder="Tell us a bit about yourself…" readonly></textarea>
+      </div>
+      <div class="two-col">
+        <div class="field">
+          <label class="field-label">Location</label>
+          <input type="text" id="field-location" placeholder="City, Country" readonly />
+        </div>
+        <div class="field">
+          <label class="field-label">Website</label>
+          <input type="text" id="field-website" placeholder="https://yoursite.com" readonly />
+        </div>
+      </div>
+      <div class="actions-row" id="profile-actions" style="display:none">
+        <button class="btn-primary" onclick="saveProfile()">Save Changes</button>
+        <button class="btn-secondary" onclick="cancelEdit()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="card">
+    <div class="card-header"><h2>Activity</h2></div>
+    <div class="card-body">
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-val accent" id="stat-scans">0</div>
+          <div class="stat-lbl">Total Scans</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val cyan" id="stat-fake">0</div>
+          <div class="stat-lbl">Fakes Detected</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-val real" id="stat-real">0</div>
+          <div class="stat-lbl">Real Verified</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Change Password -->
+  <div class="card">
+    <div class="card-header">
+      <h2>Change Password</h2>
+    </div>
+    <div class="card-body">
+      <div class="msg" id="pwd-msg"></div>
+      <div class="field">
+        <label class="field-label">Current Password</label>
+        <div class="input-wrap">
+          <input type="password" id="pwd-current" class="has-eye" placeholder="Your current password" />
+          <button class="eye-btn" type="button" onclick="toggleEye('pwd-current',this)" aria-label="Toggle">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="section-divider"></div>
+      <div class="field">
+        <label class="field-label">New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="pwd-new" class="has-eye" placeholder="Min 8 characters" oninput="checkStr(this.value)" />
+          <button class="eye-btn" type="button" onclick="toggleEye('pwd-new',this)" aria-label="Toggle">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="strength-bar">
+          <div class="strength-seg" id="ps1"></div><div class="strength-seg" id="ps2"></div>
+          <div class="strength-seg" id="ps3"></div><div class="strength-seg" id="ps4"></div>
+        </div>
+        <div class="strength-label" id="pwd-strength-label"></div>
+      </div>
+      <div class="field">
+        <label class="field-label">Confirm New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="pwd-confirm" class="has-eye" placeholder="Repeat new password" />
+          <button class="eye-btn" type="button" onclick="toggleEye('pwd-confirm',this)" aria-label="Toggle">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button class="btn-primary" onclick="changePassword()">Update Password</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Danger zone -->
+  <div class="card">
+    <div class="card-header"><h2 style="color:var(--fake)">Danger Zone</h2></div>
+    <div class="card-body" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem">
+      <div>
+        <div style="font-size:.9rem;font-weight:600">Delete Account</div>
+        <div style="font-size:.8rem;color:var(--text-muted);margin-top:.2rem">Permanently remove your account and all data.</div>
+      </div>
+      <button class="btn-danger" onclick="confirmDelete()">Delete Account</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Helpers ──
+function getUsers() { return JSON.parse(localStorage.getItem('dft_users')||'[]'); }
+function saveUsers(u) { localStorage.setItem('dft_users',JSON.stringify(u)); }
+function getCurrentUser() { return JSON.parse(localStorage.getItem('dft_current')||'null'); }
+function setCurrentUser(u) { localStorage.setItem('dft_current',JSON.stringify(u)); }
+
+function showMsg(id, text, type='error') {
+  const el = document.getElementById(id);
+  el.textContent = text; el.className = 'msg ' + type;
+  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+function clearMsg(id) { const el = document.getElementById(id); el.className='msg'; el.textContent=''; }
+
+// ── Guard ──
+let currentUser = getCurrentUser();
+if (!currentUser) { window.location.href='auth.html'; }
+
+// ── Populate ──
+function populate() {
+  // Refresh from storage
+  const users = getUsers();
+  const fresh = users.find(u => u.userid === currentUser.userid);
+  if (fresh) { currentUser = fresh; setCurrentUser(fresh); }
+
+  const initials = (currentUser.name || currentUser.userid || '?').slice(0,2).toUpperCase();
+  document.getElementById('avatar-initials').textContent = initials;
+  document.getElementById('display-name').textContent = currentUser.name || currentUser.userid;
+  document.getElementById('display-email').textContent = currentUser.email;
+  const joined = currentUser.joined ? new Date(currentUser.joined).toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'}) : '';
+  document.getElementById('display-joined').textContent = joined ? 'Member since ' + joined : '';
+
+  // Avatar from storage
+  const savedAv = localStorage.getItem('dft_avatar_' + currentUser.userid);
+  if (savedAv) { document.getElementById('avatar-img').src=savedAv; document.getElementById('avatar-img').style.display='block'; document.getElementById('avatar-initials').style.display='none'; }
+
+  // Fields
+  document.getElementById('field-userid').value = currentUser.userid || '';
+  document.getElementById('field-email').value = currentUser.email || '';
+  document.getElementById('field-name').value = currentUser.name || '';
+  document.getElementById('field-bio').value = currentUser.bio || '';
+  document.getElementById('field-location').value = currentUser.location || '';
+  document.getElementById('field-website').value = currentUser.website || '';
+
+  // Stats (demo)
+  const stats = JSON.parse(localStorage.getItem('dft_stats_'+currentUser.userid)||'{"scans":0,"fake":0,"real":0}');
+  document.getElementById('stat-scans').textContent = stats.scans;
+  document.getElementById('stat-fake').textContent = stats.fake;
+  document.getElementById('stat-real').textContent = stats.real;
+}
+populate();
+
+// ── Edit toggle ──
+let editing = false;
+let originalValues = {};
+function toggleEdit() {
+  editing = !editing;
+  const readonlyFields = ['field-email','field-name','field-bio','field-location','field-website'];
+  readonlyFields.forEach(id => { const el = document.getElementById(id); el.readOnly = !editing; });
+  document.getElementById('profile-actions').style.display = editing ? 'flex' : 'none';
+  document.getElementById('edit-chip').innerHTML = editing
+    ? `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Cancel`
+    : `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> Edit`;
+  if (editing) {
+    originalValues = { email: document.getElementById('field-email').value, name: document.getElementById('field-name').value, bio: document.getElementById('field-bio').value, location: document.getElementById('field-location').value, website: document.getElementById('field-website').value };
+    document.getElementById('field-name').focus();
+  }
+}
+function cancelEdit() {
+  Object.entries(originalValues).forEach(([k,v]) => { const el = document.getElementById('field-'+k); if(el) el.value=v; });
+  editing = true; toggleEdit();
+}
+
+function saveProfile() {
+  clearMsg('profile-msg');
+  const email = document.getElementById('field-email').value.trim();
+  const name = document.getElementById('field-name').value.trim();
+  const bio = document.getElementById('field-bio').value.trim();
+  const location = document.getElementById('field-location').value.trim();
+  const website = document.getElementById('field-website').value.trim();
+  if (!email) { showMsg('profile-msg','Email cannot be empty.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('profile-msg','Enter a valid email.'); return; }
+  const users = getUsers();
+  const idx = users.findIndex(u => u.userid === currentUser.userid);
+  if (idx < 0) { showMsg('profile-msg','User not found.'); return; }
+  // Check email conflict
+  const conflict = users.find((u,i) => u.email===email && i!==idx);
+  if (conflict) { showMsg('profile-msg','That email is already used by another account.'); return; }
+  users[idx] = { ...users[idx], email, name, bio, location, website };
+  saveUsers(users);
+  setCurrentUser(users[idx]);
+  currentUser = users[idx];
+  showMsg('profile-msg','Profile saved successfully!','success');
+  editing = true; toggleEdit();
+  document.getElementById('display-name').textContent = name || currentUser.userid;
+  document.getElementById('display-email').textContent = email;
+}
+
+// ── Avatar ──
+function handleAvatar(input) {
+  const file = input.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = e.target.result;
+    localStorage.setItem('dft_avatar_' + currentUser.userid, data);
+    document.getElementById('avatar-img').src=data; document.getElementById('avatar-img').style.display='block'; document.getElementById('avatar-initials').style.display='none';
+  };
+  reader.readAsDataURL(file);
+}
+
+// ── Password ──
+const col = {0:'#5a6480',1:'#f87171',2:'#fbbf24',3:'#34d399',4:'#818cf8'};
+const lbl = {0:'',1:'Weak',2:'Fair',3:'Good',4:'Strong'};
+function strScore(p) { let s=0; if(p.length>=8)s++; if(/[A-Z]/.test(p))s++; if(/[0-9]/.test(p))s++; if(/[^A-Za-z0-9]/.test(p))s++; return s; }
+function checkStr(v) {
+  const s=strScore(v);
+  ['ps1','ps2','ps3','ps4'].forEach((id,i)=>{ document.getElementById(id).style.background=i<s?col[s]:'rgba(255,255,255,.08)'; });
+  const el=document.getElementById('pwd-strength-label'); el.textContent=lbl[s]; el.style.color=col[s];
+}
+
+function toggleEye(id, btn) {
+  const input=document.getElementById(id);
+  const isText=input.type==='text'; input.type=isText?'password':'text';
+  btn.innerHTML=isText
+    ?`<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`
+    :`<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+}
+
+function changePassword() {
+  clearMsg('pwd-msg');
+  const cur=document.getElementById('pwd-current').value;
+  const nw=document.getElementById('pwd-new').value;
+  const conf=document.getElementById('pwd-confirm').value;
+  if(!cur||!nw||!conf){showMsg('pwd-msg','Please fill in all fields.');return;}
+  const users=getUsers(); const idx=users.findIndex(u=>u.userid===currentUser.userid);
+  if(idx<0){showMsg('pwd-msg','User not found.');return;}
+  if(users[idx].password!==btoa(cur)){showMsg('pwd-msg','Current password is incorrect.');return;}
+  if(strScore(nw)<2){showMsg('pwd-msg','New password is too weak.');return;}
+  if(nw!==conf){showMsg('pwd-msg','Passwords do not match.');return;}
+  if(cur===nw){showMsg('pwd-msg','New password must differ from current.');return;}
+  users[idx].password=btoa(nw);
+  saveUsers(users);
+  setCurrentUser(users[idx]);
+  document.getElementById('pwd-current').value=''; document.getElementById('pwd-new').value=''; document.getElementById('pwd-confirm').value='';
+  checkStr('');
+  showMsg('pwd-msg','Password updated successfully!','success');
+}
+
+// ── Logout / Delete ──
+function doLogout() {
+  localStorage.removeItem('dft_current');
+  window.location.href='auth.html';
+}
+function confirmDelete() {
+  if(!confirm('Are you sure? This will permanently delete your account and cannot be undone.'))return;
+  const users=getUsers().filter(u=>u.userid!==currentUser.userid);
+  saveUsers(users); localStorage.removeItem('dft_current'); localStorage.removeItem('dft_otp');
+  window.location.href='auth.html';
+}
+</script>
+</body>
+</html>

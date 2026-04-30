@@ -1,0 +1,13 @@
+torch
+torchvision
+opencv-python
+numpy
+pillow
+flask>=3.0
+flask-cors
+transformers>=4.36
+safetensors
+tqdm
+scikit-learn
+matplotlib
+scipy

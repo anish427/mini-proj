@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeepFake Tracker — Auth</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-deep: #08090d;
+      --bg: #0c0f15;
+      --surface: rgba(17, 21, 32, 0.85);
+      --surface-solid: #111520;
+      --border: rgba(56, 68, 100, 0.35);
+      --border-strong: rgba(80, 96, 140, 0.55);
+      --text: #e4e8f1;
+      --text-secondary: #8b95b0;
+      --text-muted: #5a6480;
+      --accent: #818cf8;
+      --accent-dim: #5b65c4;
+      --accent-glow: rgba(129, 140, 248, 0.18);
+      --cyan: #06b6d4;
+      --real: #34d399;
+      --fake: #f87171;
+      --warning: #fbbf24;
+      --radius: 16px;
+      --radius-sm: 10px;
+      --shadow: 0 8px 32px rgba(0,0,0,0.4);
+      --shadow-lg: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: 'Inter', system-ui, sans-serif;
+      display: flex; align-items: center; justify-content: center;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    .bg-gradient {
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 800px 600px at 15% -5%, rgba(99,102,241,0.13) 0%, transparent 60%),
+        radial-gradient(ellipse 600px 500px at 85% 10%, rgba(6,182,212,0.09) 0%, transparent 50%),
+        radial-gradient(ellipse 500px 400px at 50% 85%, rgba(248,113,113,0.06) 0%, transparent 50%);
+      animation: bgShift 20s ease-in-out infinite alternate; pointer-events: none;
+    }
+    @keyframes bgShift { 0%{opacity:1;transform:scale(1)} 50%{opacity:.8;transform:scale(1.04)} 100%{opacity:1;transform:scale(1)} }
+    .bg-grid {
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background-image: linear-gradient(rgba(129,140,248,.03) 1px, transparent 1px), linear-gradient(90deg,rgba(129,140,248,.03) 1px,transparent 1px);
+      background-size: 60px 60px;
+    }
+
+    /* ── CARD ── */
+    .auth-wrap { position: relative; z-index: 1; width: 100%; max-width: 440px; padding: 1rem; }
+    .auth-card {
+      background: var(--surface);
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius);
+      padding: 2.5rem 2.25rem;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-lg), 0 0 0 1px rgba(129,140,248,.06);
+      animation: cardIn .45s cubic-bezier(.22,1,.36,1) both;
+    }
+    @keyframes cardIn { from{opacity:0;transform:translateY(20px)} to{opacity:1;transform:translateY(0)} }
+
+    /* ── LOGO ── */
+    .logo { display:flex; align-items:center; gap:.75rem; margin-bottom:2rem; }
+    .logo-icon { width:40px; height:40px; flex-shrink:0; }
+    .logo-text { font-size:1.2rem; font-weight:800; letter-spacing:-.02em; }
+    .logo-text span { color: var(--accent); }
+
+    /* ── TABS ── */
+    .tabs { display:flex; gap:.5rem; margin-bottom:2rem; background:rgba(0,0,0,.25); border-radius: var(--radius-sm); padding:.25rem; }
+    .tab-btn {
+      flex:1; padding:.55rem; border:none; background:transparent; color:var(--text-secondary);
+      border-radius:8px; font-size:.85rem; font-weight:600; cursor:pointer;
+      transition:all .2s; font-family:inherit;
+    }
+    .tab-btn.active { background:var(--surface-solid,#111520); color:var(--text); box-shadow:0 1px 4px rgba(0,0,0,.4); }
+
+    /* ── FORM ── */
+    .form-view { display:none; animation: fadeSlide .3s ease both; }
+    .form-view.active { display:block; }
+    @keyframes fadeSlide { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+    h2 { font-size:1.35rem; font-weight:800; margin-bottom:.35rem; letter-spacing:-.02em; }
+    .form-sub { font-size:.85rem; color:var(--text-secondary); margin-bottom:1.75rem; }
+
+    .field { margin-bottom:1.1rem; }
+    label { display:block; font-size:.78rem; font-weight:600; color:var(--text-secondary); margin-bottom:.45rem; letter-spacing:.04em; text-transform:uppercase; }
+    .input-wrap { position:relative; }
+    input[type=text], input[type=email], input[type=password] {
+      width:100%; padding:.72rem 1rem; background:rgba(0,0,0,.3);
+      border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+      color:var(--text); font-size:.92rem; font-family:inherit;
+      outline:none; transition:border-color .2s, box-shadow .2s;
+    }
+    input[type=text]:focus, input[type=email]:focus, input[type=password]:focus {
+      border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow);
+    }
+    input.has-eye { padding-right:2.8rem; }
+    .eye-btn {
+      position:absolute; right:.75rem; top:50%; transform:translateY(-50%);
+      background:none; border:none; cursor:pointer; color:var(--text-muted);
+      padding:.2rem; display:flex; align-items:center; transition:color .2s;
+    }
+    .eye-btn:hover { color:var(--accent); }
+
+    /* ── STRENGTH ── */
+    .strength-bar { display:flex; gap:.35rem; margin-top:.5rem; }
+    .strength-seg { height:3px; flex:1; border-radius:2px; background:rgba(255,255,255,.08); transition:background .3s; }
+    .strength-label { font-size:.72rem; color:var(--text-muted); margin-top:.3rem; }
+
+    /* ── BUTTONS ── */
+    .btn-primary {
+      width:100%; padding:.82rem 1rem; background: linear-gradient(135deg,var(--accent),var(--accent-dim));
+      border:none; border-radius:var(--radius-sm); color:#fff; font-size:.95rem;
+      font-weight:700; font-family:inherit; cursor:pointer; margin-top:.5rem;
+      transition:opacity .2s, transform .15s, box-shadow .2s;
+      box-shadow:0 4px 20px rgba(129,140,248,.3);
+    }
+    .btn-primary:hover { opacity:.92; transform:translateY(-1px); box-shadow:0 6px 28px rgba(129,140,248,.4); }
+    .btn-primary:active { transform:translateY(0); }
+    .btn-primary:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+
+    .btn-ghost {
+      background:none; border:none; color:var(--accent); cursor:pointer;
+      font-size:.83rem; font-weight:600; font-family:inherit; padding:0;
+      text-decoration:underline; text-underline-offset:3px;
+    }
+    .btn-ghost:hover { color:#a5b0ff; }
+
+    /* ── MESSAGES ── */
+    .msg {
+      border-radius:var(--radius-sm); padding:.7rem 1rem;
+      font-size:.83rem; font-weight:500; margin-bottom:1rem;
+      display:none; animation:fadeSlide .25s ease;
+    }
+    .msg.error { background:rgba(248,113,113,.12); border:1px solid rgba(248,113,113,.3); color:#fca5a5; display:block; }
+    .msg.success { background:rgba(52,211,153,.1); border:1px solid rgba(52,211,153,.25); color:#6ee7b7; display:block; }
+    .msg.info { background:rgba(129,140,248,.1); border:1px solid rgba(129,140,248,.25); color:#a5b4fc; display:block; }
+
+    .divider { text-align:center; color:var(--text-muted); font-size:.78rem; margin:1.25rem 0; position:relative; }
+    .divider::before { content:''; position:absolute; top:50%; left:0; right:0; height:1px; background:var(--border); }
+    .divider span { background:var(--bg); padding:0 .75rem; position:relative; }
+
+    .row-links { display:flex; justify-content:space-between; align-items:center; margin-top:.75rem; }
+    .hint { font-size:.8rem; color:var(--text-muted); }
+
+    /* ── OTP INPUTS ── */
+    .otp-row { display:flex; gap:.65rem; justify-content:center; margin:1.2rem 0; }
+    .otp-input {
+      width:52px; height:56px; text-align:center; font-size:1.4rem; font-weight:700;
+      font-family:'Space Mono',monospace; background:rgba(0,0,0,.3);
+      border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+      color:var(--text); outline:none; transition:border-color .2s,box-shadow .2s; caret-color:var(--accent);
+    }
+    .otp-input:focus { border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-glow); }
+
+    /* ── SPINNER ── */
+    @keyframes spin { to{transform:rotate(360deg)} }
+    .spinner-inline { display:inline-block; width:16px;height:16px;border:2px solid rgba(255,255,255,.3); border-top-color:#fff; border-radius:50%; animation:spin .7s linear infinite; vertical-align:middle; margin-right:.4rem; }
+  </style>
+</head>
+<body>
+<div class="bg-gradient"></div>
+<div class="bg-grid"></div>
+
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="logo">
+      <svg class="logo-icon" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="18" stroke="url(#g1)" stroke-width="2.5" opacity="0.7"/>
+        <path d="M14 20 L18 26 L28 14" stroke="url(#g1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M12 12 L28 28 M28 12 L12 28" stroke="#f87171" stroke-width="1.2" stroke-linecap="round" opacity="0.35"/>
+        <defs><linearGradient id="g1" x1="0" y1="0" x2="40" y2="40"><stop stop-color="#818cf8"/><stop offset="1" stop-color="#06b6d4"/></linearGradient></defs>
+      </svg>
+      <div class="logo-text">DeepFake <span>Tracker</span></div>
+    </div>
+
+    <!-- LOGIN -->
+    <div class="form-view active" id="view-login">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('login')">Sign In</button>
+        <button class="tab-btn" onclick="switchTab('register')">Register</button>
+      </div>
+      <h2>Welcome back</h2>
+      <p class="form-sub">Sign in to your account to continue.</p>
+      <div class="msg" id="login-msg"></div>
+      <div class="field">
+        <label>User ID or Email</label>
+        <input type="text" id="login-id" placeholder="your_id or email@example.com" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="login-pass" class="has-eye" placeholder="••••••••" autocomplete="current-password" />
+          <button class="eye-btn" type="button" onclick="toggleEye('login-pass',this)" aria-label="Toggle password">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="row-links">
+        <span></span>
+        <button class="btn-ghost" onclick="showView('forgot')">Forgot password?</button>
+      </div>
+      <button class="btn-primary" onclick="doLogin()">Sign In</button>
+    </div>
+
+    <!-- REGISTER -->
+    <div class="form-view" id="view-register">
+      <div class="tabs">
+        <button class="tab-btn" onclick="switchTab('login')">Sign In</button>
+        <button class="tab-btn active" onclick="switchTab('register')">Register</button>
+      </div>
+      <h2>Create account</h2>
+      <p class="form-sub">Set up your DeepFake Tracker profile.</p>
+      <div class="msg" id="register-msg"></div>
+      <div class="field">
+        <label>User ID</label>
+        <input type="text" id="reg-userid" placeholder="choose_a_username" autocomplete="username" />
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="you@example.com" autocomplete="email" />
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reg-pass" class="has-eye" placeholder="Min 8 characters" oninput="checkStrength(this.value)" autocomplete="new-password" />
+          <button class="eye-btn" type="button" onclick="toggleEye('reg-pass',this)" aria-label="Toggle password">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="strength-bar" id="strength-bar">
+          <div class="strength-seg" id="s1"></div>
+          <div class="strength-seg" id="s2"></div>
+          <div class="strength-seg" id="s3"></div>
+          <div class="strength-seg" id="s4"></div>
+        </div>
+        <div class="strength-label" id="strength-label"></div>
+      </div>
+      <div class="field">
+        <label>Confirm Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reg-confirm" class="has-eye" placeholder="Repeat password" autocomplete="new-password" />
+          <button class="eye-btn" type="button" onclick="toggleEye('reg-confirm',this)" aria-label="Toggle password">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="doRegister()">Create Account</button>
+    </div>
+
+    <!-- FORGOT PASSWORD -->
+    <div class="form-view" id="view-forgot">
+      <h2>Forgot password</h2>
+      <p class="form-sub">Enter your email and we'll send a 6-digit reset code.</p>
+      <div class="msg" id="forgot-msg"></div>
+      <div class="field">
+        <label>Email Address</label>
+        <input type="email" id="forgot-email" placeholder="you@example.com" />
+      </div>
+      <button class="btn-primary" onclick="doForgot()">Send Reset Code</button>
+      <div style="text-align:center;margin-top:1rem;">
+        <button class="btn-ghost" onclick="showView('login')">← Back to sign in</button>
+      </div>
+    </div>
+
+    <!-- OTP VERIFY -->
+    <div class="form-view" id="view-otp">
+      <h2>Enter reset code</h2>
+      <p class="form-sub">We sent a 6-digit code to <strong id="otp-email-display"></strong>.</p>
+      <div class="msg" id="otp-msg"></div>
+      <div class="otp-row">
+        <input class="otp-input" maxlength="1" id="otp0" oninput="otpNext(this,0)" onkeydown="otpBack(event,0)" />
+        <input class="otp-input" maxlength="1" id="otp1" oninput="otpNext(this,1)" onkeydown="otpBack(event,1)" />
+        <input class="otp-input" maxlength="1" id="otp2" oninput="otpNext(this,2)" onkeydown="otpBack(event,2)" />
+        <input class="otp-input" maxlength="1" id="otp3" oninput="otpNext(this,3)" onkeydown="otpBack(event,3)" />
+        <input class="otp-input" maxlength="1" id="otp4" oninput="otpNext(this,4)" onkeydown="otpBack(event,4)" />
+        <input class="otp-input" maxlength="1" id="otp5" oninput="otpNext(this,5)" onkeydown="otpBack(event,5)" />
+      </div>
+      <button class="btn-primary" onclick="doVerifyOtp()">Verify Code</button>
+      <div style="text-align:center;margin-top:.9rem;font-size:.82rem;color:var(--text-muted)">
+        Didn't get it? <button class="btn-ghost" onclick="doForgot(true)">Resend</button>
+      </div>
+    </div>
+
+    <!-- RESET PASSWORD -->
+    <div class="form-view" id="view-reset">
+      <h2>Set new password</h2>
+      <p class="form-sub">Choose a strong new password for your account.</p>
+      <div class="msg" id="reset-msg"></div>
+      <div class="field">
+        <label>New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reset-pass" class="has-eye" placeholder="Min 8 characters" oninput="checkStrengthReset(this.value)" autocomplete="new-password" />
+          <button class="eye-btn" type="button" onclick="toggleEye('reset-pass',this)" aria-label="Toggle">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+        <div class="strength-bar" id="strength-bar-r">
+          <div class="strength-seg" id="rs1"></div><div class="strength-seg" id="rs2"></div>
+          <div class="strength-seg" id="rs3"></div><div class="strength-seg" id="rs4"></div>
+        </div>
+        <div class="strength-label" id="strength-label-r"></div>
+      </div>
+      <div class="field">
+        <label>Confirm New Password</label>
+        <div class="input-wrap">
+          <input type="password" id="reset-confirm" class="has-eye" placeholder="Repeat password" autocomplete="new-password" />
+          <button class="eye-btn" type="button" onclick="toggleEye('reset-confirm',this)" aria-label="Toggle">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="btn-primary" onclick="doReset()">Update Password</button>
+    </div>
+
+  </div><!-- /auth-card -->
+</div><!-- /auth-wrap -->
+
+<script>
+// ── State ──
+let currentView = 'login';
+let otpCode = '';
+let forgotEmail = '';
+
+// ── View helpers ──
+function showView(v) {
+  document.querySelectorAll('.form-view').forEach(el => el.classList.remove('active'));
+  document.getElementById('view-' + v).classList.add('active');
+  currentView = v;
+}
+function switchTab(tab) {
+  showView(tab);
+  document.querySelectorAll('.tab-btn').forEach((b,i) => b.classList.toggle('active', (tab==='login'&&i===0)||(tab==='register'&&i===1)));
+}
+
+// ── Eye toggle ──
+function toggleEye(inputId, btn) {
+  const input = document.getElementById(inputId);
+  const isText = input.type === 'text';
+  input.type = isText ? 'password' : 'text';
+  btn.innerHTML = isText
+    ? `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>`
+    : `<svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+}
+
+// ── Password strength ──
+const colors = { 0:'#5a6480', 1:'#f87171', 2:'#fbbf24', 3:'#34d399', 4:'#818cf8' };
+const labels = { 0:'', 1:'Weak', 2:'Fair', 3:'Good', 4:'Strong' };
+function strengthScore(p) {
+  let s = 0;
+  if (p.length >= 8) s++;
+  if (/[A-Z]/.test(p)) s++;
+  if (/[0-9]/.test(p)) s++;
+  if (/[^A-Za-z0-9]/.test(p)) s++;
+  return s;
+}
+function applyStrength(score, segs, labelEl) {
+  const col = colors[score];
+  segs.forEach((seg, i) => seg.style.background = i < score ? col : 'rgba(255,255,255,.08)');
+  if (labelEl) { labelEl.textContent = labels[score]; labelEl.style.color = col; }
+}
+function checkStrength(v) {
+  const s = strengthScore(v);
+  applyStrength(s, [document.getElementById('s1'),document.getElementById('s2'),document.getElementById('s3'),document.getElementById('s4')], document.getElementById('strength-label'));
+}
+function checkStrengthReset(v) {
+  const s = strengthScore(v);
+  applyStrength(s, [document.getElementById('rs1'),document.getElementById('rs2'),document.getElementById('rs3'),document.getElementById('rs4')], document.getElementById('strength-label-r'));
+}
+
+// ── Messages ──
+function showMsg(id, text, type='error') {
+  const el = document.getElementById(id);
+  el.textContent = text; el.className = 'msg ' + type;
+}
+function clearMsg(id) { const el = document.getElementById(id); el.className = 'msg'; el.textContent = ''; }
+
+// ── OTP helpers ──
+function otpNext(el, idx) {
+  el.value = el.value.replace(/[^0-9]/g, '');
+  if (el.value && idx < 5) document.getElementById('otp'+(idx+1)).focus();
+}
+function otpBack(e, idx) {
+  if (e.key === 'Backspace' && !e.target.value && idx > 0) document.getElementById('otp'+(idx-1)).focus();
+}
+function getOtpValue() {
+  return [0,1,2,3,4,5].map(i => document.getElementById('otp'+i).value).join('');
+}
+
+// ── LocalStorage user store ──
+function getUsers() { return JSON.parse(localStorage.getItem('dft_users') || '[]'); }
+function saveUsers(u) { localStorage.setItem('dft_users', JSON.stringify(u)); }
+function setCurrentUser(u) { localStorage.setItem('dft_current', JSON.stringify(u)); }
+function getCurrentUser() { return JSON.parse(localStorage.getItem('dft_current') || 'null'); }
+
+// ── Actions ──
+function doLogin() {
+  clearMsg('login-msg');
+  const id = document.getElementById('login-id').value.trim();
+  const pass = document.getElementById('login-pass').value;
+  if (!id || !pass) { showMsg('login-msg', 'Please fill in all fields.'); return; }
+  const users = getUsers();
+  const user = users.find(u => (u.userid === id || u.email === id) && u.password === btoa(pass));
+  if (!user) { showMsg('login-msg', 'Invalid credentials. Please try again.'); return; }
+  setCurrentUser(user);
+  showMsg('login-msg', 'Welcome back, ' + user.userid + '! Redirecting…', 'success');
+  setTimeout(() => { window.location.href = '/profile'; }, 1000);
+}
+
+function doRegister() {
+  clearMsg('register-msg');
+  const userid = document.getElementById('reg-userid').value.trim();
+  const email = document.getElementById('reg-email').value.trim();
+  const pass = document.getElementById('reg-pass').value;
+  const confirm = document.getElementById('reg-confirm').value;
+  if (!userid || !email || !pass || !confirm) { showMsg('register-msg', 'Please fill in all fields.'); return; }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('register-msg', 'Please enter a valid email.'); return; }
+  if (strengthScore(pass) < 2) { showMsg('register-msg', 'Password is too weak. Add uppercase, numbers or symbols.'); return; }
+  if (pass !== confirm) { showMsg('register-msg', 'Passwords do not match.'); return; }
+  const users = getUsers();
+  if (users.find(u => u.userid === userid)) { showMsg('register-msg', 'User ID already taken.'); return; }
+  if (users.find(u => u.email === email)) { showMsg('register-msg', 'Email already registered.'); return; }
+  const newUser = { userid, email, password: btoa(pass), name: '', bio: '', joined: new Date().toISOString() };
+  users.push(newUser);
+  saveUsers(users);
+  setCurrentUser(newUser);
+  showMsg('register-msg', 'Account created! Redirecting to your profile…', 'success');
+  setTimeout(() => { window.location.href = '/profile'; }, 1200);
+}
+
+function doForgot(resend=false) {
+  clearMsg('forgot-msg');
+  const email = document.getElementById('forgot-email').value.trim();
+  if (!email && !resend) { showMsg('forgot-msg', 'Please enter your email address.'); return; }
+  const users = getUsers();
+  const user = users.find(u => u.email === (resend ? forgotEmail : email));
+  if (!user) { showMsg('forgot-msg', 'No account found with that email.'); return; }
+  forgotEmail = resend ? forgotEmail : email;
+  // Generate 6-digit OTP (stored in localStorage for demo)
+  otpCode = String(Math.floor(100000 + Math.random() * 900000));
+  localStorage.setItem('dft_otp', JSON.stringify({ code: otpCode, email: forgotEmail, expires: Date.now() + 5 * 60000 }));
+  // In a real app this would be emailed — we show it as an info message for demo
+  document.getElementById('otp-email-display').textContent = forgotEmail;
+  [0,1,2,3,4,5].forEach(i => document.getElementById('otp'+i).value = '');
+  showView('otp');
+  // Demo: surface the code
+  showMsg('otp-msg', `Demo mode — your code is: ${otpCode}`, 'info');
+}
+
+function doVerifyOtp() {
+  clearMsg('otp-msg');
+  const entered = getOtpValue();
+  if (entered.length < 6) { showMsg('otp-msg', 'Enter all 6 digits.'); return; }
+  const saved = JSON.parse(localStorage.getItem('dft_otp') || 'null');
+  if (!saved || saved.code !== entered || Date.now() > saved.expires) { showMsg('otp-msg', 'Invalid or expired code.'); return; }
+  showView('reset');
+}
+
+function doReset() {
+  clearMsg('reset-msg');
+  const pass = document.getElementById('reset-pass').value;
+  const confirm = document.getElementById('reset-confirm').value;
+  if (!pass || !confirm) { showMsg('reset-msg', 'Please fill in both fields.'); return; }
+  if (strengthScore(pass) < 2) { showMsg('reset-msg', 'Password is too weak.'); return; }
+  if (pass !== confirm) { showMsg('reset-msg', 'Passwords do not match.'); return; }
+  const saved = JSON.parse(localStorage.getItem('dft_otp') || 'null');
+  if (!saved) { showMsg('reset-msg', 'Session expired. Please restart.'); return; }
+  const users = getUsers();
+  const idx = users.findIndex(u => u.email === saved.email);
+  if (idx < 0) { showMsg('reset-msg', 'User not found.'); return; }
+  users[idx].password = btoa(pass);
+  saveUsers(users);
+  localStorage.removeItem('dft_otp');
+  showMsg('reset-msg', 'Password updated! Returning to sign in…', 'success');
+  setTimeout(() => { showView('login'); switchTab('login'); }, 1500);
+}
+
+// ── Auto-redirect if logged in ──
+if (getCurrentUser() && !window.location.href.includes('auth.html')) {
+  // already logged in
+}
+</script>
+</body>
+</html>
