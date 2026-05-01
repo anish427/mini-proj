@@ -2,7 +2,7 @@
    DeepFake Tracker — Frontend Logic
    ================================================================ */
 // if (!localStorage.getItem('dft_current')) window.location.href = 'auth.html';
-const API_BASE = "";
+const API_BASE = "https://deepfake-backend.onrender.com";
 const $ = (id) => document.getElementById(id);
 
 const dropzone = $("dropzone");
