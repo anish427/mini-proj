@@ -1,8 +1,9 @@
 {
   "rewrites": [
-    { "source": "/", "destination": "/frontend/index.html" },
+    { "source": "/static/(.*)", "destination": "/frontend/$1" },
     { "source": "/auth", "destination": "/frontend/auth.html" },
-    { "source": "/profile", "destination": "/frontend/profile.html" }
+    { "source": "/profile", "destination": "/frontend/profile.html" },
+    { "source": "/", "destination": "/frontend/index.html" }
   ],
   "headers": [
     {
