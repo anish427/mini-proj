@@ -23,7 +23,7 @@ app = Flask(__name__, static_folder=str(FRONTEND), static_url_path="/static")
 CORS(app, origins=[
     "http://localhost:5500",
     "http://127.0.0.1:5500",
-    "https://your-app-name.vercel.app",  # add this after you get your Vercel URL
+    "https://mini-proj-fawn.vercel.app/",  # add this after you get your Vercel URL
 ])
 app.config["MAX_CONTENT_LENGTH"] = int(
     os.environ.get("MAX_UPLOAD_MB", "200")
