@@ -1,9 +1,9 @@
 {
+  "cleanUrls": true,
   "rewrites": [
-    { "source": "/static/(.*)", "destination": "/frontend/$1" },
-    { "source": "/auth", "destination": "/frontend/auth.html" },
-    { "source": "/profile", "destination": "/frontend/profile.html" },
-    { "source": "/", "destination": "/frontend/index.html" }
+    { "source": "/auth", "destination": "/auth.html" },
+    { "source": "/profile", "destination": "/profile.html" },
+    { "source": "/static/(.*)", "destination": "/$1" }
   ],
   "headers": [
     {
