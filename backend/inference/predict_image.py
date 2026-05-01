@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import io
@@ -16,17 +15,13 @@ _device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # Lazy singletons for each model
 _models: dict[str, dict] = {
-    "siglip": {"processor": None, "model": None, "ready": False},
     "vit":    {"processor": None, "model": None, "ready": False},
-    "sdxl":   {"processor": None, "model": None, "ready": False},
 }
 
 ROOT = Path(__file__).resolve().parent.parent
 
 # Model IDs
-SIGLIP_ID = os.environ.get("DEEPFAKE_SIGLIP", "prithivMLmods/Deepfake-Detect-Siglip2")
 VIT_ID    = os.environ.get("DEEPFAKE_VIT",    "dima806/deepfake_vs_real_image_detection")
-SDXL_ID   = os.environ.get("DEEPFAKE_SDXL",   "Organika/sdxl-detector")
 
 
 # ===================================================================
@@ -241,67 +236,24 @@ def _run_texture(image: Image.Image) -> dict:
 
 
 # ===================================================================
-#  MAJORITY-VOTE ENSEMBLE
+#  SINGLE MODEL + FORENSICS ENSEMBLE
 # ===================================================================
-# Each neural model gets equal vote.  Forensics provide support.
 _W_NEURAL   = 0.70   # Total weight for neural signal
 _W_ELA      = 0.06
 _W_METADATA = 0.08
 _W_FREQ     = 0.08
 _W_TEXTURE  = 0.08
 
-
 def _compute_ensemble(
-    siglip_fake: float,
     vit_fake: float,
-    sdxl_fake: float,
     ela_score: float,
     meta_score: float,
     freq_score: float,
     texture_score: float,
 ) -> tuple[str, float, float, float]:
-    """
-    MAJORITY-VOTE ensemble:
-      - If 2+ of 3 neural models say fake (>50%), use their average as the
-        neural signal.  This is a STRONG fake indicator.
-      - If only 1 model says fake, use a dampened signal — one model alone
-        cannot override the verdict.  Forensics must support it.
-      - If 0 models say fake, use the average (likely all low → real).
-    """
-    fakes = [siglip_fake, vit_fake, sdxl_fake]
-    avg_fake = sum(fakes) / len(fakes)
-    votes_fake = sum(1 for f in fakes if f > 0.50)
-
-    if votes_fake >= 2:
-        # MAJORITY says fake — strong signal
-        # Use average of the models that voted fake, boosted
-        fake_scores = [f for f in fakes if f > 0.50]
-        neural_fake = sum(fake_scores) / len(fake_scores)
-        # Boost slightly for agreement
-        neural_fake = min(1.0, neural_fake + 0.05 * votes_fake)
-    elif votes_fake == 1:
-        # Only ONE model says fake — uncertain
-        # Use a damped version: avg of all three (dilutes the outlier)
-        neural_fake = avg_fake
-        # But if the single model is very confident AND forensics
-        # show suspicious indicators, boost the signal
-        max_fake = max(fakes)
-        forensic_avg = (ela_score + meta_score + freq_score + texture_score) / 4
-        # Count how many forensic signals are elevated (>0.30)
-        elevated = sum(1 for s in [ela_score, meta_score, freq_score, texture_score] if s > 0.30)
-
-        if max_fake > 0.90 and forensic_avg > 0.30:
-            # Very confident model + some forensic support
-            neural_fake = max(neural_fake, 0.50 + 0.05 * elevated)
-        elif max_fake > 0.95 and elevated >= 2:
-            # Extremely confident model + 2+ elevated forensics
-            neural_fake = max(neural_fake, 0.60)
-    else:
-        # All models say real
-        neural_fake = avg_fake
-
-    neural_fake = max(0.0, min(1.0, neural_fake))
-
+    
+    neural_fake = vit_fake
+    
     # --- Weighted ensemble ---
     ensemble_fake = (
         _W_NEURAL   * neural_fake
@@ -325,10 +277,8 @@ def _compute_ensemble(
 
 def predict_pil_image(image: Image.Image) -> dict:
     """Run all detection signals and return comprehensive result."""
-    # Neural classifiers
-    siglip = _predict_multi("siglip", SIGLIP_ID, image)
+    # Neural classifiers (Only ViT now)
     vit    = _predict_multi("vit",    VIT_ID,    image)
-    sdxl   = _predict_multi("sdxl",   SDXL_ID,   image)
 
     # Forensic checks
     ela     = _run_ela(image)
@@ -338,7 +288,7 @@ def predict_pil_image(image: Image.Image) -> dict:
 
     # Ensemble
     label, confidence, prob_real, prob_fake = _compute_ensemble(
-        siglip["prob_fake"], vit["prob_fake"], sdxl["prob_fake"],
+        vit["prob_fake"],
         ela["ela_score"], meta["metadata_score"],
         freq["frequency_score"], texture["texture_score"],
     )
@@ -348,25 +298,13 @@ def predict_pil_image(image: Image.Image) -> dict:
         "confidence": round(confidence, 6),
         "prob_real": round(prob_real, 6),
         "prob_fake": round(prob_fake, 6),
-        "backend": "triple-model-ensemble",
+        "backend": "single-model-ensemble (ViT)",
         "signals": {
-            "siglip": {
-                "name": "SigLIP-2 (Diffusion)",
-                "weight": _W_NEURAL,
-                "prob_fake": round(siglip["prob_fake"], 4),
-                "prob_real": round(siglip["prob_real"], 4),
-            },
             "vit": {
-                "name": "ViT (GAN Faces)",
+                "name": "ViT (Deepfake Detect)",
                 "weight": _W_NEURAL,
                 "prob_fake": round(vit["prob_fake"], 4),
                 "prob_real": round(vit["prob_real"], 4),
-            },
-            "sdxl": {
-                "name": "Swin (SDXL/General)",
-                "weight": _W_NEURAL,
-                "prob_fake": round(sdxl["prob_fake"], 4),
-                "prob_real": round(sdxl["prob_real"], 4),
             },
             "ela": {
                 "name": "Error Level Analysis",
