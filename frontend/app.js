@@ -2,7 +2,7 @@
    DeepFake Tracker — Frontend Logic
    ================================================================ */
 // if (!localStorage.getItem('dft_current')) window.location.href = 'auth.html';
-const API_BASE = "https://deepfake-backend-4731.onrender.com";
+const API_BASE = (window.DFT_API_BASE || "https://deepfake-backend-4731.onrender.com").replace(/\/+$/, "");
 const $ = (id) => document.getElementById(id);
 
 const dropzone = $("dropzone");
@@ -212,6 +212,34 @@ function renderError(msg) {
 }
 
 /* --- Analyze --- */
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function warmUpBackend() {
+  // Render free instances can cold-start; ping health first.
+  const healthUrl = `${API_BASE}/api/health`;
+  for (let i = 0; i < 3; i++) {
+    try {
+      const res = await fetch(healthUrl, { method: "GET", cache: "no-store" });
+      if (res.ok) return;
+    } catch (_) {
+      // Retry on transient startup/network errors.
+    }
+    await sleep(1200);
+  }
+}
+
+async function fetchWithTimeout(url, options = {}, timeoutMs = 240000) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function analyze() {
   if (!selectedFile) return;
   const form = new FormData();
@@ -224,7 +252,17 @@ async function analyze() {
   forensicsSection.hidden = true;
 
   try {
-    const res = await fetch(url, { method: "POST", body: form });
+    await warmUpBackend();
+
+    let res;
+    try {
+      res = await fetchWithTimeout(url, { method: "POST", body: form }, 240000);
+    } catch (firstErr) {
+      // One retry handles temporary Render cold-start disconnects.
+      await sleep(1500);
+      res = await fetchWithTimeout(url, { method: "POST", body: form }, 240000);
+    }
+
     const data = await res.json();
     if (!res.ok || data.ok === false) {
       renderError(data.error || `Request failed (${res.status})`);
@@ -232,7 +270,11 @@ async function analyze() {
     }
     renderResult(data, video);
   } catch (e) {
-    renderError(e.message || "Network error. Is the Flask server running?");
+    if (e.name === "AbortError") {
+      renderError("Request timed out. Backend took too long to respond; please try again.");
+      return;
+    }
+    renderError("Failed to connect to backend. Check Render service status and CORS/API URL.");
   } finally {
     setLoading(false);
   }
